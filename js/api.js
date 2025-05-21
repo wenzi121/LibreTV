@@ -69,6 +69,7 @@ async function handleApiRequest(url) {
 
         // 详情处理
         if (url.pathname === '/api/detail') {
+            debugger
             const id = url.searchParams.get('id');
             const sourceCode = url.searchParams.get('source') || 'heimuer'; // 获取源代码
             
@@ -137,7 +138,7 @@ async function handleApiRequest(url) {
                 
                 // 提取播放地址
                 let episodes = [];
-                
+                console.log('--------------------------')
                 if (videoDetail.vod_play_url) {
                     // 分割不同播放源
                     const playSources = videoDetail.vod_play_url.split('$$$');
@@ -151,8 +152,8 @@ async function handleApiRequest(url) {
                         episodes = episodeList.map(ep => {
                             const parts = ep.split('$');
                             // 返回URL部分(通常是第二部分，如果有的话)
-                            return parts.length > 1 ? parts[1] : '';
-                        }).filter(url => url && (url.startsWith('http://') || url.startsWith('https://')));
+                            return parts.length > 1 ? { name:  parts[0], url: parts[1]} : {};
+                        }).filter(item => item.url && (item.url.startsWith('http://') || item.url.startsWith('https://')));
                     }
                 }
                 
@@ -265,7 +266,10 @@ async function handleCustomApiSpecialDetail(id, customApi) {
 async function handleSpecialSourceDetail(id, sourceCode) {
     try {
         // 构建详情页URL（使用配置中的detail URL而不是api URL）
-        const detailUrl = `${API_SITES[sourceCode].detail}/index.php/vod/detail/id/${id}.html`;
+        let detailUrl = `${API_SITES[sourceCode].detail}/index.php/vod/detail/id/${id}.html`;
+        if (sourceCode === 'heimuer') {
+            detailUrl = `${API_SITES[sourceCode].detail}${id}`;
+        }
         
         // 添加超时处理
         const controller = new AbortController();
@@ -294,9 +298,17 @@ async function handleSpecialSourceDetail(id, sourceCode) {
         if (sourceCode === 'ffzy') {
             // 非凡影视使用特定的正则表达式
             const ffzyPattern = /\$(https?:\/\/[^"'\s]+?\/\d{8}\/\d+_[a-f0-9]+\/index\.m3u8)/g;
-            matches = html.match(ffzyPattern) || [];
+            matches = html.match(ffzyPattern).map(item => {
+                return { url: item}
+            });
         }
-        
+        if (sourceCode === 'heimuer') {
+            matches =
+                JSON.parse(html)['list'][0]['vod_play_url'].split('#').map(play_url => {
+                    let playArray = play_url.split('$')
+                    return { name: playArray[0], url: playArray[1] }
+                })
+        }
         // 如果没有找到链接或者是其他源类型，尝试一个更通用的模式
         if (matches.length === 0) {
             const generalPattern = /\$(https?:\/\/[^"'\s]+?\.m3u8)/g;
@@ -305,10 +317,15 @@ async function handleSpecialSourceDetail(id, sourceCode) {
         // 去重处理，避免一个播放源多集显示
         matches = [...new Set(matches)];
         // 处理链接
+        console.log('matches', matches);
         matches = matches.map(link => {
-            link = link.substring(1, link.length);
-            const parenIndex = link.indexOf('(');
-            return parenIndex > 0 ? link.substring(0, parenIndex) : link;
+            if (sourceCode === 'heimuer') {
+                return link;
+            } else {
+                link = link.substring(1, link.length);
+                const parenIndex = link.indexOf('(');
+                return parenIndex > 0 ? link.substring(0, parenIndex) : link;
+            }
         });
         
         // 提取可能存在的标题、简介等基本信息

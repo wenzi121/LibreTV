@@ -842,6 +842,7 @@ function renderEpisodes() {
     let html = '';
     
     episodes.forEach((episode, index) => {
+        console.log(episode)
         // 根据倒序状态计算真实的剧集索引
         const realIndex = episodesReversed ? currentEpisodes.length - 1 - index : index;
         const isActive = realIndex === currentEpisodeIndex;
@@ -850,7 +851,7 @@ function renderEpisodes() {
             <button id="episode-${realIndex}" 
                     onclick="playEpisode(${realIndex})" 
                     class="px-4 py-2 ${isActive ? 'episode-active' : '!bg-[#222] hover:!bg-[#333] hover:!shadow-none'} !border ${isActive ? '!border-blue-500' : '!border-[#333]'} rounded-lg transition-colors text-center episode-btn">
-                第${realIndex + 1}集
+                ${episode.name}
             </button>
         `;
     });
@@ -887,7 +888,7 @@ function playEpisode(index) {
         <div>正在加载视频...</div>
     `;
     
-    const url = currentEpisodes[index];
+    const url = currentEpisodes[index].url;
     // 更新全局URL记录
     currentVideoUrl = url;
     currentEpisodeIndex = index;

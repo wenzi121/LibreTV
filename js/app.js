@@ -952,6 +952,7 @@ async function showDetails(id, vod_name, sourceCode) {
         let apiParams = '';
         
         // 处理自定义API源
+        console.log(sourceCode, 'sourceCode')
         if (sourceCode.startsWith('custom_')) {
             const customIndex = sourceCode.replace('custom_', '');
             const customApi = getCustomApiInfo(customIndex);
@@ -970,11 +971,12 @@ async function showDetails(id, vod_name, sourceCode) {
             // 内置API
             apiParams = '&source=' + sourceCode;
         }
-        
+
+        console.log('request', '/api/detail?id=' + encodeURIComponent(id) + apiParams)
         const response = await fetch('/api/detail?id=' + encodeURIComponent(id) + apiParams);
-        
         const data = await response.json();
-        
+        console.log('detail data', data)
+
         const modal = document.getElementById('modal');
         const modalTitle = document.getElementById('modalTitle');
         const modalContent = document.getElementById('modalContent');
@@ -986,19 +988,21 @@ async function showDetails(id, vod_name, sourceCode) {
         // 不对标题进行截断处理，允许完整显示
         modalTitle.innerHTML = `<span class="break-words">${vod_name || '未知视频'}</span>${sourceName}`;
         currentVideoTitle = vod_name || '未知视频';
-        
+        console.trace('处理集数', data.episodes)
         if (data.episodes && data.episodes.length > 0) {
             // 安全处理集数URL
-            const safeEpisodes = data.episodes.map(url => {
+            const safeEpisodes = data.episodes/*.map(item => {
                 try {
                     // 确保URL是有效的并且是http或https开头
-                    return url && (url.startsWith('http://') || url.startsWith('https://'))
-                        ? url.replace(/"/g, '&quot;')
+                    return item.url && (item.url.startsWith('http://') || item.url.startsWith('https://'))
+                        ? item.url.replace(/"/g, '&quot;')
                         : '';
                 } catch (e) {
                     return '';
                 }
-            }).filter(url => url); // 过滤掉空URL
+            })*/.filter(item => {
+                return item.url && (item.url.startsWith('http://') || item.url.startsWith('https://'))
+            }); // 过滤掉空URL
             
             // 保存当前视频的所有集数
             currentEpisodes = safeEpisodes;
@@ -1017,7 +1021,7 @@ async function showDetails(id, vod_name, sourceCode) {
                         </svg>
                     </button>
                 </div>
-                <div id="episodesGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                <div id="episodesGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-6 gap-2">
                     ${renderEpisodes(vod_name, sourceCode)}
                 </div>
             `;
@@ -1149,13 +1153,14 @@ function handlePlayerError() {
 // 辅助函数用于渲染剧集按钮（使用当前的排序状态）
 function renderEpisodes(vodName, sourceCode) {
     const episodes = episodesReversed ? [...currentEpisodes].reverse() : currentEpisodes;
+    console.log('renderEpisodes', episodes)
     return episodes.map((episode, index) => {
         // 根据倒序状态计算真实的剧集索引
         const realIndex = episodesReversed ? currentEpisodes.length - 1 - index : index;
         return `
-            <button id="episode-${realIndex}" onclick="playVideo('${episode}','${vodName.replace(/"/g, '&quot;')}', '${sourceCode}', ${realIndex})" 
+            <button id="episode-${realIndex}" onclick="playVideo('${episode.url}','${vodName.replace(/"/g, '&quot;')}', '${sourceCode}', ${realIndex})" 
                     class="px-4 py-2 bg-[#222] hover:bg-[#333] border border-[#333] rounded-lg transition-colors text-center episode-btn">
-                第${realIndex + 1}集
+                ${episode.name}
             </button>
         `;
     }).join('');
@@ -1505,6 +1510,7 @@ function saveStringAsFile(content, fileName) {
 // app.js 或路由文件中
 const authMiddleware = require('./middleware/auth');
 const config = require('./config');
+const url = require("node:url");
 
 // 对所有请求启用鉴权（按需调整作用范围）
 if (config.auth.enabled) {
